@@ -42,6 +42,14 @@ export class ApiError extends Error {
   }
 }
 
+// WHY env-based base URL: dev uses relative /api (Vite proxy); production build
+// points at the deployed API. Empty in dev keeps same-origin parity.
+const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
+
+function apiUrl(path: string) {
+  return `${API_BASE}${path}`;
+}
+
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   // WHY attach the token here, in one place: every caller is automatically
   // authenticated when a session exists — no route can forget the header.
@@ -73,29 +81,29 @@ export function fetchTickets(filters: { status?: string; priority?: string; q?: 
   if (filters.priority) params.set('priority', filters.priority);
   if (filters.q?.trim()) params.set('q', filters.q.trim());
   const qs = params.toString();
-  return request<TicketListResponse>(`/api/tickets${qs ? `?${qs}` : ''}`);
+  return request<TicketListResponse>(apiUrl(`/api/tickets${qs ? `?${qs}` : ''}`));
 }
 
 export function login(email: string, password: string) {
-  return request<AuthSession>('/api/auth/login', {
+  return request<AuthSession>(apiUrl('/api/auth/login'), {
     method: 'POST',
     body: JSON.stringify({ email, password }),
   });
 }
 
 export function fetchTicket(id: string) {
-  return request<Ticket>(`/api/tickets/${id}`);
+  return request<Ticket>(apiUrl(`/api/tickets/${id}`));
 }
 
 export function createTicket(data: NewTicket) {
-  return request<Ticket>('/api/tickets', { method: 'POST', body: JSON.stringify(data) });
+  return request<Ticket>(apiUrl('/api/tickets'), { method: 'POST', body: JSON.stringify(data) });
 }
 
 export function updateTicketStatus(id: string, status: Status, expectedVersion: number) {
   // WHY expectedVersion: tells the server which version of the ticket this
   // change was based on — a stale one gets a 409 instead of overwriting
   // another agent's edit (optimistic concurrency control).
-  return request<Ticket>(`/api/tickets/${id}`, {
+  return request<Ticket>(apiUrl(`/api/tickets/${id}`), {
     method: 'PATCH',
     body: JSON.stringify({ status, expectedVersion }),
   });
