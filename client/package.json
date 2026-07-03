@@ -4,8 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "node scripts/write-redirects.mjs && tsc -b && vite build",
+    "dev": "node init && vite",
+    "build": "node init && node scripts/write-redirects.mjs && tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview"
   },
