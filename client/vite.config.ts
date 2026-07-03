@@ -9,6 +9,7 @@ export default defineConfig({
     // frontend behind the same origin anyway, keeping dev/prod parity.
     proxy: {
       '/api': 'http://localhost:4000',
+      '/socket.io': { target: 'http://localhost:4000', ws: true },
     },
   },
 })

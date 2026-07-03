@@ -19,13 +19,17 @@
 body { margin: 0; background: var(--bg); }
 
 /* WHY a max-width column: ticket rows stay scannable on wide monitors and
-   the same layout collapses gracefully on phones. */
+   the same layout collapses gracefully on phones. Board view widens below. */
 #root { max-width: 760px; margin: 0 auto; padding: 0 16px 48px; }
+#root:has(.board-layout) { max-width: 1100px; }
 
 .app-header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .app-header a { text-decoration: none; color: inherit; }
 .app-header h1 { font-size: 1.4rem; margin: 24px 0 16px; }
 .app-header > a + * { font-size: 0.9rem; }
+.app-nav { display: flex; gap: 16px; margin: -8px 0 16px; font-size: 0.95rem; }
+.app-nav a { text-decoration: none; color: var(--muted); }
+.app-nav a.active { color: var(--accent); font-weight: 600; }
 .auth-status { display: inline-flex; gap: 10px; align-items: baseline; }
 /* A button that reads as a link — real <button> for keyboard/screen readers */
 .link-btn { background: none; border: none; padding: 0; font: inherit; color: var(--accent); cursor: pointer; text-decoration: underline; }
@@ -76,6 +80,27 @@ li.card { display: flex; justify-content: space-between; gap: 12px; flex-wrap: w
 
 .status-select { display: inline-flex; align-items: center; gap: 6px; }
 
+/* Kanban board */
+.kanban {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+.kanban-column {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  min-height: 120px;
+}
+.kanban-column.drag-over { border-color: var(--accent); background: #eef4ff; }
+.kanban-column-title { font-size: 0.95rem; margin: 0 0 10px; }
+.kanban-cards { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.kanban-card { display: grid; gap: 4px; cursor: grab; }
+.kanban-card.saving { opacity: 0.6; cursor: wait; }
+.kanban-card:active { cursor: grabbing; }
+
 /* Detail page */
 .detail { display: grid; gap: 12px; }
 .detail-header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -94,4 +119,5 @@ li.card { display: flex; justify-content: space-between; gap: 12px; flex-wrap: w
    list card contents is the single thing phones need help with. */
 @media (max-width: 480px) {
   li.card { flex-direction: column; }
+  .kanban { grid-template-columns: 1fr; }
 }

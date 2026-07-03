@@ -1,9 +1,10 @@
-import { BrowserRouter, Link, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Link, NavLink, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth';
 import { TicketList } from './pages/TicketList';
 import { TicketDetail } from './pages/TicketDetail';
 import { NewTicket } from './pages/NewTicket';
 import { Login } from './pages/Login';
+import { KanbanBoard } from './pages/KanbanBoard';
 
 // Header auth corner: who is signed in, and the way in/out.
 function AuthStatus() {
@@ -28,9 +29,14 @@ export default function App() {
           <Link to="/"><h1>Support Tickets</h1></Link>
           <AuthStatus />
         </header>
+        <nav className="app-nav" aria-label="Views">
+          <NavLink to="/" end>List</NavLink>
+          <NavLink to="/board">Board</NavLink>
+        </nav>
         <main>
           <Routes>
             <Route path="/" element={<TicketList />} />
+            <Route path="/board" element={<KanbanBoard />} />
             <Route path="/new" element={<NewTicket />} />
             <Route path="/login" element={<Login />} />
             <Route path="/tickets/:id" element={<TicketDetail />} />

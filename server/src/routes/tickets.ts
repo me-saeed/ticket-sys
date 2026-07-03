@@ -5,6 +5,7 @@ import { createTicketSchema, updateTicketSchema } from '../validation/ticket.sch
 import { HttpError } from '../middleware/errorHandler.js';
 import { writeLimiter } from '../middleware/rateLimit.js';
 import { requireAuth } from '../middleware/auth.js';
+import { emitTicketCreated, emitTicketUpdated } from '../realtime.js';
 
 export const ticketsRouter = Router();
 
@@ -79,7 +80,11 @@ ticketsRouter.post('/', writeLimiter, async (req, res) => {
   // WHY status is not spread from input: the spec requires every new ticket
   // to start "open"; the schema default enforces it, clients can't override.
   const ticket = await Ticket.create(input);
-  res.status(201).json(ticket);
+  const payload = ticket.toJSON();
+  // WHY emit after DB save: REST is the source of truth; the socket only
+  // notifies other dashboards that a new row exists.
+  emitTicketCreated(payload);
+  res.status(201).json(payload);
 });
 
 // PATCH /api/tickets/:id
@@ -103,5 +108,7 @@ ticketsRouter.patch('/:id', requireAuth, writeLimiter, async (req, res) => {
   }
   ticket.set(updates);
   await ticket.save();
-  res.json(ticket);
+  const payload = ticket.toJSON();
+  emitTicketUpdated(payload);
+  res.json(payload);
 });
