@@ -50,6 +50,7 @@ a { color: var(--accent); }
   padding: 8px 14px; font-size: 0.95rem; cursor: pointer; text-decoration: none;
 }
 .btn:disabled { opacity: 0.6; cursor: default; }
+.btn-sm { font-size: 0.85rem; padding: 6px 12px; }
 
 select, input, textarea {
   font: inherit; color: inherit; background: var(--card);
@@ -98,8 +99,23 @@ li.card { display: flex; justify-content: space-between; gap: 12px; flex-wrap: w
 .kanban-column-title { font-size: 0.95rem; margin: 0 0 10px; }
 .kanban-cards { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
 .kanban-card { display: grid; gap: 4px; cursor: grab; }
+.kanban-card.locked { cursor: not-allowed; }
 .kanban-card.saving { opacity: 0.6; cursor: wait; }
-.kanban-card:active { cursor: grabbing; }
+.kanban-card:active:not(.locked) { cursor: grabbing; }
+
+.board-login-callout {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
+  background: #eef4ff; border: 1px solid #bfdbfe; border-radius: 8px;
+  padding: 12px 14px; margin-bottom: 12px;
+}
+.board-login-callout p { margin: 0; flex: 1 1 200px; }
+
+.board-login-prompt {
+  background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px;
+  padding: 12px 14px; margin-bottom: 12px;
+}
+.board-login-prompt p { margin: 0 0 8px; }
+.board-login-prompt-actions { display: flex; gap: 12px; align-items: center; }
 
 /* Detail page */
 .detail { display: grid; gap: 12px; }

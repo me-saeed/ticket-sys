@@ -9,6 +9,7 @@ export function KanbanColumn({
   canDrag,
   savingId,
   onDrop,
+  onLoginRequired,
 }: {
   status: Status;
   label: string;
@@ -16,6 +17,7 @@ export function KanbanColumn({
   canDrag: boolean;
   savingId: string | null;
   onDrop: (ticketId: string, status: Status) => void;
+  onLoginRequired: () => void;
 }) {
   const [dragOver, setDragOver] = useState(false);
 
@@ -43,8 +45,9 @@ export function KanbanColumn({
           <KanbanCard
             key={t.id}
             ticket={t}
-            draggable={canDrag}
+            canDrag={canDrag}
             saving={savingId === t.id}
+            onLoginRequired={onLoginRequired}
           />
         ))}
       </ul>

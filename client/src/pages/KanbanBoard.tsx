@@ -29,6 +29,13 @@ export function KanbanBoard() {
   const [priority, setPriority] = useState('');
   const [search, setSearch] = useState('');
   const [q, setQ] = useState('');
+  const [loginPrompt, setLoginPrompt] = useState(false);
+
+  const showLoginPrompt = useCallback(() => setLoginPrompt(true), []);
+
+  useEffect(() => {
+    if (user) setLoginPrompt(false);
+  }, [user]);
 
   const handleUpdated = useCallback((updated: Ticket) => {
     setTickets((prev) => prev?.map((t) => (t.id === updated.id ? updated : t)) ?? prev);
@@ -75,7 +82,10 @@ export function KanbanBoard() {
   });
 
   async function handleDrop(ticketId: string, newStatus: Status) {
-    if (!user) return;
+    if (!user) {
+      showLoginPrompt();
+      return;
+    }
     const ticket = tickets?.find((t) => t.id === ticketId);
     if (!ticket || ticket.status === newStatus) return;
     try {
@@ -118,9 +128,29 @@ export function KanbanBoard() {
       </div>
 
       {!user && (
-        <p className="muted">
-          <Link to="/login">Sign in</Link> to drag tickets between columns.
-        </p>
+        <div className="board-login-callout">
+          <p>
+            <strong>View only.</strong> Sign in as an agent to drag tickets between columns and
+            update their status.
+          </p>
+          <Link to="/login" className="btn btn-sm">
+            Sign in to update
+          </Link>
+        </div>
+      )}
+
+      {loginPrompt && !user && (
+        <div className="board-login-prompt" role="alert">
+          <p>You need to sign in before you can drag and drop tickets.</p>
+          <div className="board-login-prompt-actions">
+            <Link to="/login" className="btn btn-sm">
+              Sign in
+            </Link>
+            <button type="button" className="link-btn" onClick={() => setLoginPrompt(false)}>
+              Dismiss
+            </button>
+          </div>
+        </div>
       )}
 
       {error && <p className="error" role="alert">{error}</p>}
@@ -144,6 +174,7 @@ export function KanbanBoard() {
               canDrag={!!user}
               savingId={savingId}
               onDrop={handleDrop}
+              onLoginRequired={showLoginPrompt}
             />
           ))}
         </div>

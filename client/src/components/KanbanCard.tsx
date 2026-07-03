@@ -4,18 +4,25 @@ import type { Ticket } from '../types';
 
 export function KanbanCard({
   ticket,
-  draggable,
+  canDrag,
   saving,
+  onLoginRequired,
 }: {
   ticket: Ticket;
-  draggable: boolean;
+  canDrag: boolean;
   saving: boolean;
+  onLoginRequired: () => void;
 }) {
   return (
     <li
-      className={`kanban-card card${saving ? ' saving' : ''}`}
-      draggable={draggable && !saving}
+      className={`kanban-card card${saving ? ' saving' : ''}${canDrag ? '' : ' locked'}`}
+      draggable={!saving}
       onDragStart={(e) => {
+        if (!canDrag) {
+          e.preventDefault();
+          onLoginRequired();
+          return;
+        }
         e.dataTransfer.setData('text/ticket-id', ticket.id);
         e.dataTransfer.effectAllowed = 'move';
       }}
