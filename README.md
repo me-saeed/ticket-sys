@@ -4,6 +4,16 @@ A compact, production-minded support ticket dashboard: view, filter, create and 
 
 Every non-obvious decision in the code is marked with a `// WHY:` comment explaining the reasoning.
 
+## Live demo
+
+| Resource | URL |
+| -------- | --- |
+| API (production) | https://tickets.ouiimi.com |
+| API docs (Swagger) | https://tickets.ouiimi.com/api/docs/ |
+| Agent login | **agent@example.com** / **agent123** (seeded demo account) |
+
+The production frontend build points at the live API via `client/.env.production`. Deploy `client/dist/` to any static host (e.g. Netlify — see [Deployment](#deployment)).
+
 ## Technologies
 
 | Layer    | Choice                                | Why                                                                                     |
@@ -14,6 +24,7 @@ Every non-obvious decision in the code is marked with a `// WHY:` comment explai
 | Auth     | JWT (`jsonwebtoken`) + `bcryptjs`     | Stateless tokens keep the API horizontally scalable; bcrypt for password hashing (pure JS — no native build step for reviewers) |
 | API docs | `swagger-ui-express` + hand-written OpenAPI 3 spec | Interactive docs at `/api/docs`; the spec imports the real enum constants so docs can't drift from code |
 | Frontend | React + Vite + TypeScript             | Smallest standard setup; react-router only extra dependency                              |
+| Real-time | Socket.IO                            | Broadcasts `ticket:created` / `ticket:updated` after REST saves — REST stays source of truth |
 | Styling  | Plain CSS (~100 lines)                | Three pages don't justify a UI library; assessment values clarity over polish            |
 | Testing  | Vitest + Supertest + mongodb-memory-server | Tests hit a real in-memory MongoDB — no local DB needed, no dev data touched        |
 
@@ -48,7 +59,7 @@ cd server
 npm test
 ```
 
-14 tests cover: ticket creation + persistence, required-field rejection, email format rejection, status update + persistence, invalid status rejection, concurrent-edit rejection (409 on stale version), 404 handling, login success, login failure (with identical responses for wrong-password vs unknown-email), 401 on unauthenticated/garbage-token updates, rate limiting (429 after the write budget), status filtering with sort order, search by title/customer, and regex-metacharacter escaping in search. First run downloads an in-memory MongoDB binary (~1 min).
+15 tests cover: ticket creation + persistence, required-field rejection, email format rejection, status update + persistence, invalid status rejection, concurrent-edit rejection (409 on stale version), 404 handling, login success, login failure (with identical responses for wrong-password vs unknown-email), 401 on unauthenticated/garbage-token updates, rate limiting (429 after the write budget), status filtering with sort order, search by title/customer, regex-metacharacter escaping in search, and Socket.IO `ticket:created` broadcast. First run downloads an in-memory MongoDB binary (~1 min).
 
 ## API
 
@@ -84,11 +95,11 @@ Validation errors return `400` with `{ error, details: { field: message } }` so 
 
 ## Assumptions & trade-offs
 
-- **No auth** — out of scope per the brief; every visitor can manage tickets.
+- **Role-based auth** — customers create tickets (public); agents sign in to PATCH status. List/detail/board are browsable without login.
 - **Pagination is implemented in the API** (default 50, cap 100) but the UI shows the first page only — with real traffic the collection grows unbounded, so the API refuses to return "everything"; UI paging controls were the cut.
 - **Types are duplicated** between `server` and `client` (~15 lines) rather than a shared workspace package — simpler for a two-package repo, documented sync cost.
 - **No optimistic UI** on status updates — the UI re-renders from the server response, so what you see is always what was persisted (the core requirement). Cost: a briefly disabled select.
-- **No CORS config** — the Vite dev proxy makes requests same-origin; production would serve the built frontend behind the same origin.
+- **No CORS on REST** — the Vite dev proxy makes requests same-origin locally; production FE calls the API via `VITE_API_BASE_URL`. Socket.IO enables `cors: { origin: true }` for cross-origin live updates.
 - **Load-then-save on PATCH** instead of `findByIdAndUpdate` — full schema validation with one obvious code path; negligible cost at this document size.
 
 ## Optional improvements from the brief
@@ -99,20 +110,22 @@ Validation errors return `400` with `{ error, details: { field: message } }` so 
 | Pagination or sorting | ✅ Sorting (newest first, index-backed) and API pagination (`page`/`limit`, capped at 100). UI paging controls deferred |
 | Authentication / role-based access | ✅ JWT agent login; public creates vs agent-only updates; no open signup by design |
 | Swagger/OpenAPI documentation | ✅ Interactive Swagger UI at `/api/docs` |
-| Additional automated tests | ✅ 14 tests vs the required 2 |
+| Additional automated tests | ✅ 15 tests vs the required 2 |
 | Accessibility improvements | ✅ Labels on all inputs, `aria-label` on selects, `aria-invalid` on failed fields, `role="alert"`/`role="status"` on feedback, visible focus outlines |
-| Docker, deployment, WebSockets | ❌ Deliberately skipped — the brief prioritizes reliable core flows over breadth |
+| WebSocket live updates | ✅ Socket.IO notifications on create/update; REST remains source of truth |
+| Drag and drop (Kanban board) | ✅ `/board` — drag tickets between Open / In Progress / Resolved; persists via PATCH |
+| Docker | ❌ Deliberately skipped — the brief prioritizes reliable core flows over breadth |
 
 Beyond the brief's list, two production-hardening features were added: **per-IP rate limiting** (429) and **optimistic concurrency control** for concurrent edits (409 + UI self-refresh) — see the API section above.
 
 ## With more time
 
 - UI pagination / infinite scroll on the list
-- Kanban drag-and-drop board (the PATCH endpoint already supports it)
 - Frontend component tests (Vitest + Testing Library)
 - Docker Compose (API + MongoDB + built frontend behind one origin)
 - httpOnly-cookie sessions + refresh tokens instead of localStorage JWT
 - Admin role + user management UI (the `role` field already exists)
+- Keyboard-accessible drag-and-drop (`@dnd-kit`) on the Kanban board
 
 ## Project structure
 
@@ -126,32 +139,51 @@ server/
     docs/openapi.ts           # hand-written OpenAPI 3 spec (served at /api/docs)
     config.ts                 # JWT secret + expiry
     app.ts                    # express app (imported by tests)
-    server.ts                 # DB connect + listen
+    server.ts                 # DB connect + HTTP server + Socket.IO
+    realtime.ts               # emit helpers for live updates
     seed.ts                   # idempotent sample data + demo agent
   tests/tickets.test.ts
+  tests/realtime.test.ts
 client/
   src/
     types.ts                  # mirrored API contract + label maps
     api.ts                    # typed fetch wrapper + session storage
     auth.tsx                  # AuthProvider / useAuth context
-    components/               # Badge, StatusSelect (auth-aware PATCH control)
-    pages/                    # TicketList, TicketDetail, NewTicket, Login
+    useTicketSocket.ts        # Socket.IO subscription hook
+    useTicketStatusUpdate.ts  # shared PATCH + 409 recovery
+    components/               # Badge, StatusSelect, KanbanCard, KanbanColumn
+    pages/                    # TicketList, TicketDetail, KanbanBoard, NewTicket, Login
+  .env.production             # live API URL (baked into `npm run build`)
+  dist/                       # production build output (deploy this)
 ```
 
 ## Deployment
 
-Production environment variables (`client/.env.production`):
+### Production build
+
+Environment variables are set in `client/.env.production` and baked in at build time:
 
 | Variable | Value |
 | -------- | ----- |
 | `VITE_API_BASE_URL` | https://tickets.ouiimi.com |
 | `VITE_API_DOCS_URL` | https://tickets.ouiimi.com/api/docs/ |
 
-Build the frontend for static hosting:
-
 ```bash
 cd client
+npm install
 npm run build
 ```
 
-Copy the contents of `client/dist/` to your host (e.g. Netlify). Demo agent login: **agent@example.com / agent123**.
+Output: **`client/dist/`** — copy or upload this folder to your static host.
+
+### Netlify
+
+Import the whole repo; `netlify.toml` at the root builds only the frontend (`base = client`, publish `dist`). No extra env vars needed if `.env.production` is committed.
+
+### After deploy
+
+- Open your hosted frontend URL
+- Sign in as **agent@example.com / agent123** to update statuses or use the Kanban board
+- API docs: https://tickets.ouiimi.com/api/docs/
+- Live updates require the browser to reach Socket.IO on the same host as `VITE_API_BASE_URL`
+
