@@ -1,0 +1,11 @@
+# Netlify reads this at the repo root. `base = "client"` scopes install/build
+# to the frontend only — import the whole monorepo and Netlify deploys just FE.
+[build]
+  base = "client"
+  command = "npm run build"
+  publish = "dist"
+  # Skip deploys when only backend (or other non-FE) files changed.
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- . ':(exclude)client'"
+
+[build.environment]
+  NODE_VERSION = "20"

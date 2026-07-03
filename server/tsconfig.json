@@ -1,0 +1,15 @@
+{
+  // WHY: strict mode + NodeNext so TypeScript actually catches bugs and
+  // module resolution matches modern Node ESM — no bundler magic needed.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "outDir": "dist",
+    "rootDir": "src"
+  },
+  "include": ["src"]
+}
