@@ -1,11 +1,13 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import request from 'supertest';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import type { Server } from 'socket.io';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { createApp } from '../src/app.js';
 import { Ticket } from '../src/models/Ticket.js';
 import { User } from '../src/models/User.js';
+import { setIo } from '../src/realtime.js';
 
 // WHY mongodb-memory-server: tests run against a real (in-memory) MongoDB, so
 // schema validation, indexes and queries are tested for real — but without
@@ -13,8 +15,10 @@ import { User } from '../src/models/User.js';
 let mongo: MongoMemoryServer;
 let token: string; // agent JWT used by all PATCH tests
 const app = createApp();
+const emitSpy = vi.fn();
 
 beforeAll(async () => {
+  setIo({ emit: emitSpy } as unknown as Server);
   mongo = await MongoMemoryServer.create();
   await mongoose.connect(mongo.getUri());
 
@@ -41,6 +45,7 @@ afterAll(async () => {
 // WHY wipe between tests: each test starts from a known-empty state, so tests
 // stay independent and can run in any order.
 beforeEach(async () => {
+  emitSpy.mockClear();
   await Ticket.deleteMany({});
 });
 
@@ -64,6 +69,10 @@ describe('POST /api/tickets', () => {
     // WHY check the DB too: proves persistence, not just the HTTP response.
     const inDb = await Ticket.findById(res.body.id);
     expect(inDb?.title).toBe(validTicket.title);
+    expect(emitSpy).toHaveBeenCalledWith(
+      'ticket:created',
+      expect.objectContaining({ ticket: expect.objectContaining({ title: validTicket.title }) }),
+    );
   });
 
   it('rejects a ticket without required fields (400 with field details)', async () => {
@@ -100,6 +109,10 @@ describe('PATCH /api/tickets/:id', () => {
 
     const inDb = await Ticket.findById(created.id);
     expect(inDb?.status).toBe('resolved');
+    expect(emitSpy).toHaveBeenCalledWith(
+      'ticket:updated',
+      expect.objectContaining({ ticket: expect.objectContaining({ status: 'resolved' }) }),
+    );
   });
 
   it('rejects an invalid status value', async () => {

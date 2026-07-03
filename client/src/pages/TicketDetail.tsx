@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { fetchTicket } from '../api';
 import { PriorityBadge } from '../components/Badge';
 import { StatusSelect } from '../components/StatusSelect';
+import { useTicketSocket } from '../useTicketSocket';
 import type { Ticket } from '../types';
 
 export function TicketDetail() {
@@ -18,6 +19,16 @@ export function TicketDetail() {
       // instead of a generic failure — clearer for the user.
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load'));
   }, [id]);
+
+  useTicketSocket({
+    onUpdated: (incoming) => {
+      if (incoming.id !== id) return;
+      setTicket((current) => {
+        if (current && incoming.version <= current.version) return current;
+        return incoming;
+      });
+    },
+  });
 
   if (error)
     return (

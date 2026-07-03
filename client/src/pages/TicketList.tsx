@@ -3,8 +3,21 @@ import { Link } from 'react-router-dom';
 import { fetchTickets } from '../api';
 import { PriorityBadge } from '../components/Badge';
 import { StatusSelect } from '../components/StatusSelect';
+import { useTicketSocket } from '../useTicketSocket';
 import type { Ticket } from '../types';
 import { PRIORITIES, PRIORITY_LABELS, STATUSES, STATUS_LABELS } from '../types';
+
+function matchesFilters(ticket: Ticket, status: string, priority: string, q: string) {
+  if (status && ticket.status !== status) return false;
+  if (priority && ticket.priority !== priority) return false;
+  if (q.trim()) {
+    const term = q.trim().toLowerCase();
+    if (!ticket.title.toLowerCase().includes(term) && !ticket.customerName.toLowerCase().includes(term)) {
+      return false;
+    }
+  }
+  return true;
+}
 
 export function TicketList() {
   const [tickets, setTickets] = useState<Ticket[] | null>(null); // null = loading
@@ -41,6 +54,24 @@ export function TicketList() {
   function handleUpdated(updated: Ticket) {
     setTickets((prev) => prev?.map((t) => (t.id === updated.id ? updated : t)) ?? prev);
   }
+
+  useTicketSocket({
+    onCreated: (incoming) => {
+      if (!matchesFilters(incoming, status, priority, q)) return;
+      setTickets((prev) => {
+        if (!prev || prev.some((t) => t.id === incoming.id)) return prev;
+        return [incoming, ...prev];
+      });
+    },
+    onUpdated: (incoming) => {
+      setTickets((prev) => {
+        if (!prev) return prev;
+        const current = prev.find((t) => t.id === incoming.id);
+        if (!current || incoming.version <= current.version) return prev;
+        return prev.map((t) => (t.id === incoming.id ? incoming : t));
+      });
+    },
+  });
 
   return (
     <>
