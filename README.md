@@ -137,3 +137,21 @@ client/
     components/               # Badge, StatusSelect (auth-aware PATCH control)
     pages/                    # TicketList, TicketDetail, NewTicket, Login
 ```
+
+## Deployment
+
+Production environment variables (`client/.env.production`):
+
+| Variable | Value |
+| -------- | ----- |
+| `VITE_API_BASE_URL` | https://tickets.ouiimi.com |
+| `VITE_API_DOCS_URL` | https://tickets.ouiimi.com/api/docs/ |
+
+Build the frontend for static hosting:
+
+```bash
+cd client
+npm run build
+```
+
+Copy the contents of `client/dist/` to your host (e.g. Netlify). Demo agent login: **agent@example.com / agent123**.
